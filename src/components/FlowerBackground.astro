@@ -1,0 +1,583 @@
+---
+---
+
+<canvas id="flower-bg"></canvas>
+
+<style>
+	#flower-bg {
+		position: fixed;
+		inset: 0;
+		width: 100vw;
+		height: 100vh;
+		display: block;
+		image-rendering: crisp-edges;
+		image-rendering: pixelated;
+		pointer-events: none;
+	}
+</style>
+
+<script>
+	const canvas = document.getElementById('flower-bg') as HTMLCanvasElement | null;
+	if (canvas) {
+		const gl = canvas.getContext('webgl2', { antialias: false, premultipliedAlpha: false, alpha: false });
+
+		const fail = (msg: string) => {
+			console.error('[FlowerBackground]', msg);
+			const ctx = canvas.getContext('2d');
+			if (ctx) {
+				canvas.width = window.innerWidth;
+				canvas.height = window.innerHeight;
+				ctx.fillStyle = '#05060e';
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+			}
+		};
+
+		if (!gl) {
+			fail('WebGL2 unavailable');
+		} else {
+			const vertSrc = `#version 300 es
+layout(location = 0) in vec2 aPos;
+void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
+`;
+
+			const sceneFragSrc = `#version 300 es
+precision highp float;
+precision highp int;
+out vec4 outColor;
+
+uniform vec2 uResolution;
+uniform float uTime;
+uniform float uSeed;
+
+const float PI = 3.14159265359;
+const int CLUSTERS = 13;
+const int PETAL_PATCHES = 4;
+
+float hash11(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
+
+vec2 hash21(float n) {
+	return fract(sin(vec2(n, n + 1.7)) * vec2(43758.5453, 22578.1459));
+}
+
+float valueNoise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	float a = hash11(dot(i, vec2(1.0, 57.0)));
+	float b = hash11(dot(i + vec2(1.0, 0.0), vec2(1.0, 57.0)));
+	float c = hash11(dot(i + vec2(0.0, 1.0), vec2(1.0, 57.0)));
+	float d = hash11(dot(i + vec2(1.0, 1.0), vec2(1.0, 57.0)));
+	return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int i = 0; i < 3; i++) {
+		v += a * valueNoise(p);
+		p *= 2.02;
+		a *= 0.5;
+	}
+	return v;
+}
+
+vec2 rotate2(vec2 p, float a) {
+	float c = cos(a);
+	float s = sin(a);
+	return mat2(c, -s, s, c) * p;
+}
+
+vec2 clusterCenter(int id, float aspect, float baseSeed) {
+	float fi = float(id);
+	float s = baseSeed + fi * 17.31;
+	vec2 rnd = hash21(s);
+	vec2 center = vec2(
+		rnd.x * (aspect + 0.36) - 0.18,
+		rnd.y * 1.36 - 0.18
+	);
+
+	if (id == 0) center = vec2(aspect * 0.18, 0.16);
+	if (id == 1) center = vec2(aspect * 0.46, 0.28);
+	if (id == 2) center = vec2(aspect * 0.78, 0.22);
+	if (id == 3) center = vec2(aspect * 0.18, 0.72);
+	if (id == 4) center = vec2(aspect * 0.52, 0.70);
+	if (id == 5) center = vec2(aspect * 0.86, 0.66);
+
+	vec2 jitter = hash21(s + 9.2) - 0.5;
+	return center + jitter * vec2(0.10, 0.08);
+}
+
+float clusterRadius(int id, float baseSeed) {
+	float fi = float(id);
+	float depth01 = fi / float(CLUSTERS - 1);
+	float s = baseSeed + fi * 17.31;
+	float radius = mix(0.24, 0.39, depth01) * (0.88 + 0.28 * hash11(s + 3.1));
+	if (id < 6) radius *= 1.08;
+	if (id == 10 || id == 12) radius *= 1.18;
+	return radius;
+}
+
+vec2 windField(vec2 pos, float t) {
+	float wave = fbm(pos * 0.72 + vec2(t * 0.055, -t * 0.025));
+	float gust = fbm(pos * 1.35 + vec2(-t * 0.040, t * 0.030));
+	float strength = wave * 0.75 + gust * 0.25 - 0.5;
+	return vec2(0.055, -0.018) * strength;
+}
+
+vec2 movedCenter(vec2 center, float seed, float depth01, float t) {
+	float motionScale = mix(0.35, 1.0, depth01);
+	float lag = mix(0.65, 1.25, hash11(seed + 12.0));
+	vec2 wind = windField(center, t);
+	center += wind * motionScale;
+	center += windField(center, t - lag) * motionScale * 0.28;
+	return center;
+}
+
+vec4 poppyCluster(vec2 p, vec2 center, float radius, float rot, float seed, float t, float depth01) {
+	vec2 d = rotate2(p - center, rot);
+
+	float squash = mix(0.72, 1.22, hash11(seed + 2.0));
+	d.x *= mix(0.82, 1.18, hash11(seed + 3.0));
+	d.y *= squash;
+	d.x += d.y * mix(-0.22, 0.22, hash11(seed + 4.0));
+
+	float r = length(d);
+	if (r > radius * 1.65) return vec4(0.0);
+
+	float a = atan(d.y, d.x);
+	float flowerPhase = hash11(seed + 5.0) * 2.0 * PI;
+	float lobes = 4.0;
+	float edgeNoise =
+		0.21 * cos(lobes * a + flowerPhase) +
+		0.07 * cos(8.0 * a + hash11(seed + 7.0) * 2.0 * PI) +
+		0.08 * (fbm(vec2(cos(a), sin(a)) * 2.8 + vec2(seed)) - 0.5);
+
+	float edge = radius * (1.0 + edgeNoise);
+	float flex = sin(t * 0.55 + center.x * 2.2 + center.y * 1.7 + seed) * 0.035;
+	edge += radius * flex * cos(a - 0.4);
+
+	float soft = radius * mix(0.055, 0.095, 1.0 - depth01);
+	float mask = 1.0 - smoothstep(edge - soft, edge + soft, r);
+
+	float rn = r / max(radius, 0.001);
+	float petalBand = 0.5 + 0.5 * cos(lobes * a + flowerPhase + rn * 1.7);
+	float patchMask = 0.0;
+	float patchShade = 0.0;
+	float seamMask = 0.0;
+	for (int n = 0; n < PETAL_PATCHES; n++) {
+		float fn = float(n);
+		float ps = seed + fn * 23.17;
+		float pa = flowerPhase / lobes + (fn / float(PETAL_PATCHES)) * 2.0 * PI + (hash11(ps + 1.0) - 0.5) * 0.32;
+		float reach = radius * mix(0.22, 0.42, hash11(ps + 2.0));
+		vec2 offset = vec2(cos(pa), sin(pa)) * reach;
+		vec2 q = rotate2(d - offset, -pa + mix(-0.24, 0.24, hash11(ps + 3.0)));
+		vec2 petalScale = radius * vec2(
+			mix(0.44, 0.68, hash11(ps + 4.0)),
+			mix(0.24, 0.38, hash11(ps + 5.0))
+		);
+		float ell = length(q / max(petalScale, vec2(0.001)));
+		float petalPatch = 1.0 - smoothstep(0.76, 1.02, ell);
+		petalPatch *= mix(0.78, 1.0, hash11(ps + 6.0));
+		patchMask = max(patchMask, petalPatch);
+		patchShade += petalPatch * mix(0.35, 0.95, hash11(ps + 7.0));
+		seamMask = max(seamMask, (1.0 - smoothstep(0.025, 0.105, abs(q.y / max(radius, 0.001)))) * smoothstep(0.18, 0.88, ell) * petalPatch);
+	}
+	patchShade /= max(patchMask * 2.4, 1.0);
+	mask = clamp(mask * 0.72 + patchMask * 0.88, 0.0, 1.0);
+	petalBand = mix(petalBand, patchShade, 0.72);
+	float folds = fbm(d / radius * 3.0 + vec2(seed, seed * 0.37));
+	float cup = 1.0 - smoothstep(0.05, 0.34, rn);
+	float core = 1.0 - smoothstep(0.035, 0.16, rn);
+	float rim = smoothstep(0.36, 1.02, rn);
+	float missing = smoothstep(0.48, 0.70, fbm(d / radius * 2.0 + vec2(seed * 2.1)));
+	float torn = smoothstep(0.40, 0.82, fbm(d / radius * 4.6 + vec2(-seed * 0.31, seed * 0.83))) *
+		smoothstep(0.22, 0.96, rn);
+
+	float bite =
+		smoothstep(0.50, 0.82, fbm(d / radius * 2.4 + vec2(seed * 1.7, -seed))) *
+		smoothstep(0.18, 0.85, rn);
+	mask *= mix(1.0, 0.60, bite * 0.68);
+	mask *= mix(1.0, 0.72, missing * smoothstep(0.28, 1.05, rn) * 0.58);
+	mask *= mix(1.0, 0.76, torn * 0.38);
+
+	float shadow = clamp(
+		0.50 * cup +
+		0.42 * (1.0 - petalBand) * (1.0 - rn * 0.45) +
+		0.34 * seamMask +
+		0.38 * core +
+		0.30 * bite +
+		0.18 * (1.0 - folds) +
+		0.18 * missing +
+		0.16 * torn,
+		0.0,
+		1.0
+	);
+
+	float shade = clamp(
+		0.34 +
+		0.50 * rim +
+		0.22 * petalBand +
+		0.17 * folds +
+		0.12 * patchShade -
+		0.54 * shadow,
+		0.0,
+		1.0
+	);
+
+	float outer = 1.0 - smoothstep(edge + soft * 0.4, edge + soft * 2.4, r);
+	float halo = clamp(outer - mask, 0.0, 1.0);
+	return vec4(clamp(mask, 0.0, 1.0), shade, shadow, halo);
+}
+
+void main() {
+	vec2 frag = gl_FragCoord.xy;
+	vec2 res = uResolution.x > 0.5 ? uResolution : vec2(1280.0, 720.0);
+	vec2 uv = frag / res;
+	float aspect = res.x / res.y;
+	vec2 p = vec2(uv.x * aspect, uv.y);
+
+	float t = uTime;
+
+	vec3 bgDark = vec3(0.008, 0.014, 0.035);
+	vec3 bgBlue = vec3(0.018, 0.060, 0.120);
+	vec3 petalDeep = vec3(0.018, 0.025, 0.070);
+	vec3 petalDark = vec3(0.020, 0.110, 0.230);
+	vec3 petalMid = vec3(0.090, 0.360, 0.720);
+	vec3 petalSoft = vec3(0.340, 0.610, 0.960);
+	vec3 petalHi = vec3(0.670, 0.820, 1.000);
+	vec3 leafMute = vec3(0.150, 0.270, 0.260);
+
+	float bgWash = fbm(p * 1.15 + vec2(t * 0.018, -t * 0.012));
+	vec3 col = mix(bgDark, bgBlue, smoothstep(0.18, 0.92, bgWash) * 0.55);
+	col += (fbm(p * 3.0 - vec2(t * 0.012, t * 0.008)) - 0.5) * vec3(0.014, 0.024, 0.045);
+
+	float haze = fbm(p * 1.1 + vec2(t * 0.025, -t * 0.015));
+	col += vec3(0.015, 0.040, 0.075) * smoothstep(0.35, 0.95, haze) * 0.55;
+
+	for (int i = 0; i < CLUSTERS; i++) {
+		float fi = float(i);
+		float depth01 = fi / float(CLUSTERS - 1);
+		float s = uSeed + fi * 17.31;
+
+		vec2 center = clusterCenter(i, aspect, uSeed);
+		float radius = clusterRadius(i, uSeed);
+		float rot = hash11(s + 5.7) * 2.0 * PI;
+		center = movedCenter(center, s, depth01, t);
+
+		vec2 local = (p - center) / max(radius, 0.001);
+		float localR = length(local);
+		float contactShadow = smoothstep(0.44, 0.88, fbm(local * 1.75 + vec2(s * 0.15, -s * 0.22))) *
+			smoothstep(0.18, 0.96, localR) *
+			mix(0.55, 1.0, depth01);
+
+		vec4 fm = poppyCluster(p, center, radius, rot, s, t, depth01);
+		float smearMask = (fm.w * 0.18 + fm.x * 0.035) * mix(0.42, 0.85, depth01);
+		vec3 smearCol = mix(petalDeep, petalMid, 0.28) * mix(0.42, 0.72, depth01);
+		col = mix(col, smearCol, smearMask);
+
+		if (fm.x > 0.001) {
+			float shade = fm.y;
+			float shadow = clamp(fm.z + contactShadow * 0.55, 0.0, 1.0);
+			vec3 petalCol = mix(petalDark, petalMid, smoothstep(0.18, 0.68, shade));
+			petalCol = mix(petalCol, petalSoft, smoothstep(0.58, 0.90, shade));
+			petalCol = mix(petalCol, petalHi, smoothstep(0.84, 1.00, shade) * 0.75);
+			petalCol = mix(petalCol, petalDeep, shadow * 0.55);
+
+			if (hash11(s + 20.0) > 0.58) {
+				petalCol = mix(petalCol, leafMute, contactShadow * 0.18);
+			}
+
+			float dim = mix(0.62, 1.08, depth01);
+			float alpha = fm.x * mix(0.72, 1.0, depth01);
+			col = mix(col, petalCol * dim, alpha);
+		}
+
+		if (fm.w > 0.001) {
+			vec3 haloCol = mix(bgBlue, petalSoft, 0.32) * mix(0.28, 0.55, depth01);
+			col = mix(col, haloCol, fm.w * 0.16);
+		}
+	}
+
+outColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}
+`;
+
+			const displayFragSrc = `#version 300 es
+precision highp float;
+precision highp int;
+out vec4 outColor;
+
+uniform sampler2D uScene;
+uniform vec2 uResolution;
+uniform vec2 uSceneResolution;
+uniform float uTime;
+uniform float uSeed;
+
+const float BAYER[64] = float[64](
+	 0.0/64.0, 32.0/64.0,  8.0/64.0, 40.0/64.0,  2.0/64.0, 34.0/64.0, 10.0/64.0, 42.0/64.0,
+	48.0/64.0, 16.0/64.0, 56.0/64.0, 24.0/64.0, 50.0/64.0, 18.0/64.0, 58.0/64.0, 26.0/64.0,
+	12.0/64.0, 44.0/64.0,  4.0/64.0, 36.0/64.0, 14.0/64.0, 46.0/64.0,  6.0/64.0, 38.0/64.0,
+	60.0/64.0, 28.0/64.0, 52.0/64.0, 20.0/64.0, 62.0/64.0, 30.0/64.0, 54.0/64.0, 22.0/64.0,
+	 3.0/64.0, 35.0/64.0, 11.0/64.0, 43.0/64.0,  1.0/64.0, 33.0/64.0,  9.0/64.0, 41.0/64.0,
+	51.0/64.0, 19.0/64.0, 59.0/64.0, 27.0/64.0, 49.0/64.0, 17.0/64.0, 57.0/64.0, 25.0/64.0,
+	15.0/64.0, 47.0/64.0,  7.0/64.0, 39.0/64.0, 13.0/64.0, 45.0/64.0,  5.0/64.0, 37.0/64.0,
+	63.0/64.0, 31.0/64.0, 55.0/64.0, 23.0/64.0, 61.0/64.0, 29.0/64.0, 53.0/64.0, 21.0/64.0
+);
+
+float hash11(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
+
+float valueNoise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	float a = hash11(dot(i, vec2(1.0, 57.0)));
+	float b = hash11(dot(i + vec2(1.0, 0.0), vec2(1.0, 57.0)));
+	float c = hash11(dot(i + vec2(0.0, 1.0), vec2(1.0, 57.0)));
+	float d = hash11(dot(i + vec2(1.0, 1.0), vec2(1.0, 57.0)));
+	return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+void main() {
+	vec2 frag = gl_FragCoord.xy;
+	vec2 res = uResolution.x > 0.5 ? uResolution : vec2(1280.0, 720.0);
+	vec2 uv = frag / res;
+	vec2 texel = 1.0 / max(uSceneResolution, vec2(1.0));
+	vec3 col = texture(uScene, clamp(uv, texel * 0.5, 1.0 - texel * 0.5)).rgb;
+
+	vec2 ditherFrag = floor(frag / 1.0);
+	int bx = int(mod(ditherFrag.x, 8.0));
+	int by = int(mod(ditherFrag.y, 8.0));
+	float threshold = BAYER[by * 8 + bx];
+
+	vec3 gammaCol = pow(max(col, vec3(0.0)), vec3(0.82));
+	float lum = dot(gammaCol, vec3(0.299, 0.587, 0.114));
+
+	float bands = mix(4.0, 7.0, smoothstep(0.18, 0.72, lum));
+	float q = floor(lum * bands + threshold * 0.95) / bands;
+	gammaCol *= q / max(lum, 0.0015);
+
+	gammaCol.r = floor(gammaCol.r * 8.0 + threshold * 0.65) / 8.0;
+	gammaCol.g = floor(gammaCol.g * 10.0 + threshold * 0.70) / 10.0;
+	gammaCol.b = floor(gammaCol.b * 12.0 + threshold * 0.75) / 12.0;
+
+	col = pow(max(gammaCol, vec3(0.0)), vec3(1.0 / 0.82));
+	col *= 1.4;
+	outColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}
+`;
+
+			const compile = (type: number, src: string): WebGLShader | null => {
+				const sh = gl.createShader(type);
+				if (!sh) return null;
+				gl.shaderSource(sh, src);
+				gl.compileShader(sh);
+				if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+					console.error('[FlowerBackground] shader compile error:\n', gl.getShaderInfoLog(sh), '\nsource:\n', src);
+					gl.deleteShader(sh);
+					return null;
+				}
+				return sh;
+			};
+
+			const createProgram = (fragSrc: string, label: string): WebGLProgram | null => {
+				const vs = compile(gl.VERTEX_SHADER, vertSrc);
+				const fs = compile(gl.FRAGMENT_SHADER, fragSrc);
+				if (!vs || !fs) return null;
+
+				const prog = gl.createProgram();
+				if (!prog) return null;
+
+				gl.attachShader(prog, vs);
+				gl.attachShader(prog, fs);
+				gl.linkProgram(prog);
+				gl.deleteShader(vs);
+				gl.deleteShader(fs);
+
+				if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+					console.error(`[FlowerBackground] ${label} link error:`, gl.getProgramInfoLog(prog));
+					gl.deleteProgram(prog);
+					return null;
+				}
+
+				return prog;
+			};
+
+			const sceneProg = createProgram(sceneFragSrc, 'scene');
+			const displayProg = createProgram(displayFragSrc, 'display');
+			const vao = gl.createVertexArray();
+			const buf = gl.createBuffer();
+			const sceneTexture = gl.createTexture();
+			const sceneFramebuffer = gl.createFramebuffer();
+
+			if (!sceneProg || !displayProg || !vao || !buf || !sceneTexture || !sceneFramebuffer) {
+				fail('WebGL setup failed');
+			} else {
+				gl.bindVertexArray(vao);
+				gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+				gl.enableVertexAttribArray(0);
+				gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+				const sceneUResolution = gl.getUniformLocation(sceneProg, 'uResolution');
+				const sceneUTime = gl.getUniformLocation(sceneProg, 'uTime');
+				const sceneUSeed = gl.getUniformLocation(sceneProg, 'uSeed');
+				const displayUScene = gl.getUniformLocation(displayProg, 'uScene');
+				const displayUResolution = gl.getUniformLocation(displayProg, 'uResolution');
+				const displayUSceneResolution = gl.getUniformLocation(displayProg, 'uSceneResolution');
+				const displayUTime = gl.getUniformLocation(displayProg, 'uTime');
+				const displayUSeed = gl.getUniformLocation(displayProg, 'uSeed');
+
+				const seed = Math.random() * 1000;
+				const STEP_FPS = 18;
+				const TARGET_PIXEL_SIZE = 3;
+				const MAX_RENDER_PIXELS = 1_050_000;
+				const start = performance.now();
+				const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+				let sceneWidth = 0;
+				let sceneHeight = 0;
+				let needsScene = true;
+				let needsDisplay = true;
+				let lastFrame = -1;
+				let rafId = 0;
+				let running = !document.hidden;
+
+				canvas.addEventListener('webglcontextlost', (event) => {
+					event.preventDefault();
+					running = false;
+				});
+
+				canvas.addEventListener('webglcontextrestored', () => {
+					window.location.reload();
+				});
+
+				const allocateSceneTarget = (w: number, h: number) => {
+					gl.bindTexture(gl.TEXTURE_2D, sceneTexture);
+					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+					gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFramebuffer);
+					gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sceneTexture, 0);
+
+					if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+						fail('scene framebuffer incomplete');
+					}
+
+					gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+				};
+
+				const resize = () => {
+					const cssW = Math.max(1, window.innerWidth);
+					const cssH = Math.max(1, window.innerHeight);
+					let pixelSize = TARGET_PIXEL_SIZE;
+					let w = Math.max(1, Math.ceil(cssW / pixelSize));
+					let h = Math.max(1, Math.ceil(cssH / pixelSize));
+
+					while (w * h > MAX_RENDER_PIXELS) {
+						pixelSize += 1;
+						w = Math.max(1, Math.ceil(cssW / pixelSize));
+						h = Math.max(1, Math.ceil(cssH / pixelSize));
+					}
+
+					if (canvas.width === w && canvas.height === h) return;
+
+					canvas.width = w;
+					canvas.height = h;
+					sceneWidth = w;
+					sceneHeight = h;
+					allocateSceneTarget(w, h);
+					needsScene = true;
+					needsDisplay = true;
+					lastFrame = -1;
+				};
+
+				const renderSceneTexture = (tQuantized: number) => {
+					gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFramebuffer);
+					gl.viewport(0, 0, sceneWidth, sceneHeight);
+					gl.clearColor(0.02, 0.024, 0.055, 1.0);
+					gl.clear(gl.COLOR_BUFFER_BIT);
+					gl.useProgram(sceneProg);
+					gl.bindVertexArray(vao);
+					gl.uniform2f(sceneUResolution, sceneWidth, sceneHeight);
+					gl.uniform1f(sceneUTime, tQuantized);
+					gl.uniform1f(sceneUSeed, seed);
+					gl.drawArrays(gl.TRIANGLES, 0, 3);
+					gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+				};
+
+				const renderDisplayFrame = (tQuantized: number) => {
+					gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+					gl.viewport(0, 0, canvas.width, canvas.height);
+					gl.clearColor(0.02, 0.024, 0.055, 1.0);
+					gl.clear(gl.COLOR_BUFFER_BIT);
+					gl.useProgram(displayProg);
+					gl.bindVertexArray(vao);
+					gl.activeTexture(gl.TEXTURE0);
+					gl.bindTexture(gl.TEXTURE_2D, sceneTexture);
+					gl.uniform1i(displayUScene, 0);
+					gl.uniform2f(displayUResolution, canvas.width, canvas.height);
+					gl.uniform2f(displayUSceneResolution, sceneWidth, sceneHeight);
+					gl.uniform1f(displayUTime, tQuantized);
+					gl.uniform1f(displayUSeed, seed);
+					gl.drawArrays(gl.TRIANGLES, 0, 3);
+				};
+
+				const scheduleRender = () => {
+					if (rafId === 0 && running) {
+						rafId = requestAnimationFrame(render);
+					}
+				};
+
+				const render = () => {
+					rafId = 0;
+					if (!running) return;
+
+					const elapsed = prefersReducedMotion.matches ? 0 : (performance.now() - start) / 1000;
+					const frame = Math.floor(elapsed * STEP_FPS);
+					const tQuantized = frame / STEP_FPS;
+
+					if (needsScene || frame !== lastFrame) {
+						renderSceneTexture(tQuantized);
+						needsScene = false;
+						needsDisplay = false;
+						lastFrame = frame;
+						renderDisplayFrame(tQuantized);
+					} else if (needsDisplay) {
+						needsDisplay = false;
+						renderDisplayFrame(tQuantized);
+					}
+
+					if (!prefersReducedMotion.matches) {
+						scheduleRender();
+					}
+				};
+
+				window.addEventListener('resize', () => {
+					resize();
+					scheduleRender();
+				});
+
+				document.addEventListener('visibilitychange', () => {
+					running = !document.hidden;
+					if (running) {
+						needsDisplay = true;
+						lastFrame = -1;
+						scheduleRender();
+					}
+				});
+
+				prefersReducedMotion.addEventListener('change', () => {
+					needsDisplay = true;
+					lastFrame = -1;
+					scheduleRender();
+				});
+
+				resize();
+				scheduleRender();
+			}
+		}
+	}
+</script>

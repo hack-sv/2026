@@ -1,11 +1,32 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+import FlowerBackground from '../components/FlowerBackground.astro';
 ---
 
-<Layout>
-	<Welcome />
-</Layout>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}/favicon.svg`} />
+		<link rel="icon" href={`${import.meta.env.BASE_URL}/favicon.ico`} />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>café sv</title>
+		<style is:global>
+			html {
+				background: #05060e;
+			}
+			html, body {
+				margin: 0;
+				padding: 0;
+				min-height: 100vh;
+				color: #fff5ec;
+				font-family: system-ui, sans-serif;
+			}
+			body {
+				background: transparent;
+			}
+		</style>
+	</head>
+	<body>
+		<FlowerBackground />
+	</body>
+</html>
