@@ -1,5 +1,10 @@
 ---
 import FlowerBackground from '../components/FlowerBackground.astro';
+import Sponsors from '../components/Sponsors.astro';
+import '@fontsource/nunito-sans/300.css';
+import '@fontsource/nunito-sans/400.css';
+import '@fontsource/nunito-sans/500.css';
+import '@fontsource/nunito-sans/900.css';
 ---
 
 <html lang="en">
@@ -7,26 +12,304 @@ import FlowerBackground from '../components/FlowerBackground.astro';
 		<meta charset="utf-8" />
 		<link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}/favicon.svg`} />
 		<link rel="icon" href={`${import.meta.env.BASE_URL}/favicon.ico`} />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="generator" content={Astro.generator} />
-		<title>café sv</title>
+		<title>hack.sv 2026</title>
 		<style is:global>
 			html {
 				background: #05060e;
 			}
-			html, body {
+			html,
+			body {
 				margin: 0;
 				padding: 0;
-				min-height: 100vh;
-				color: #fff5ec;
-				font-family: system-ui, sans-serif;
+				height: 100%;
+				color: #ffffff;
+				font-family: 'Nunito Sans', system-ui, sans-serif;
+				-webkit-font-smoothing: antialiased;
 			}
 			body {
 				background: transparent;
+				/* One pager — never scroll. */
+				overflow: hidden;
+			}
+			* {
+				box-sizing: border-box;
 			}
 		</style>
 	</head>
 	<body>
 		<FlowerBackground />
+		<Sponsors />
+
+		<main class="page">
+			<section class="hero">
+				<img class="mark" src={`${import.meta.env.BASE_URL}/hack.sv.svg`} alt="" aria-hidden="true" />
+
+				<h1 class="title">
+					<span class="brand">hack.sv</span><br />
+					<span class="year">2026</span>
+				</h1>
+
+				<p class="date">August 29&ndash;30, 2026</p>
+
+				<form class="cta" id="signup" novalidate>
+					<div class="field">
+						<input
+							id="email"
+							class="email"
+							type="email"
+							name="email"
+							inputmode="email"
+							autocomplete="email"
+							placeholder="your.email@hack.sv"
+							aria-label="Email address"
+							aria-describedby="cta-note"
+							required
+						/>
+						<button class="submit" type="submit" aria-label="Sign up">
+							<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+								<path
+									d="M4 12h15M13 6l6 6-6 6"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"></path>
+							</svg>
+						</button>
+					</div>
+				</form>
+
+				<div class="info">
+					<p>This is where more info goes.</p>
+					<p>Multiple lines for future use.</p>
+					<p>Wow, this is so cool.</p>
+				</div>
+			</section>
+
+			<footer class="foot">
+				<p class="contact">
+					Questions? <a href="mailto:team@hack.sv">team@hack.sv</a>
+				</p>
+				<p class="legal" id="cta-note">
+					<a href="https://hacksv.org" target="_blank" rel="noopener noreferrer">Hack SV</a> is a
+					501(c)(3) nonprofit organization (EIN: 39-3466775).
+				</p>
+				<p class="terms">
+					By entering your email, you agree to our <a href="/privacy">privacy policy</a> and
+					<a href="/conduct">code of conduct</a>.
+				</p>
+			</footer>
+		</main>
+
+		<style>
+			/* --- layout: one full-height column, footer pinned to bottom ----- */
+			.page {
+				position: relative;
+				z-index: 1;
+				height: 100svh;
+				display: flex;
+				flex-direction: column;
+				justify-content: space-between;
+				padding: clamp(1.5rem, 4vh, 3.25rem) clamp(1.5rem, 4vw, 3.75rem);
+				max-width: 60rem;
+			}
+
+			.hero {
+				display: flex;
+				flex-direction: column;
+				min-height: 0;
+			}
+
+			/* --- terminal mark ">." ------------------------------------------ */
+			.mark {
+				display: block;
+				align-self: flex-start;
+				width: auto;
+				height: clamp(2.25rem, 6.5vh, 4rem);
+				margin-bottom: clamp(0.35rem, 1.2vh, 0.9rem);
+			}
+
+			/* --- title ------------------------------------------------------- */
+			.title {
+				margin: 0;
+				line-height: 0.9;
+				letter-spacing: -0.03em;
+				font-size: clamp(4rem, 15.5vh, 9rem);
+			}
+			.brand {
+				font-weight: 900;
+			}
+			.year {
+				font-weight: 400;
+				letter-spacing: -0.02em;
+			}
+
+			.date {
+				margin: clamp(0.75rem, 2.2vh, 1.6rem) 0 0;
+				font-weight: 500;
+				font-size: clamp(1.35rem, 3.6vh, 2.35rem);
+				letter-spacing: -0.005em;
+			}
+
+			/* --- CTA --------------------------------------------------------- */
+			.cta {
+				margin: clamp(1rem, 2.6vh, 1.9rem) 0 0;
+				width: min(100%, 34rem);
+			}
+			.field {
+				display: flex;
+				align-items: stretch;
+				background: #ffffff;
+				border: 2px solid #ffffff;
+				border-radius: 0;
+				overflow: hidden;
+			}
+			/* Invalid submit: gentle macOS-style nudge, no color change. */
+			.field.shake {
+				animation: shake 0.4s ease-in-out both;
+			}
+			@keyframes shake {
+				20% {
+					transform: translateX(-4px);
+				}
+				40% {
+					transform: translateX(3px);
+				}
+				60% {
+					transform: translateX(-2px);
+				}
+				80% {
+					transform: translateX(1px);
+				}
+			}
+			.email {
+				flex: 1 1 auto;
+				min-width: 0;
+				border: 0;
+				outline: 0;
+				background: transparent;
+				color: #05060e;
+				font-family: inherit;
+				font-weight: 300;
+				font-size: clamp(1.05rem, 2.5vh, 1.4rem);
+				padding: clamp(0.65rem, 1.7vh, 1rem) clamp(0.9rem, 2vw, 1.2rem);
+			}
+			.email::placeholder {
+				color: #9aa0aa;
+				font-weight: 300;
+			}
+			.submit {
+				flex: 0 0 auto;
+				display: grid;
+				place-items: center;
+				width: clamp(3rem, 6vw, 3.75rem);
+				border: 0;
+				background: transparent;
+				color: #05060e;
+				cursor: pointer;
+			}
+			.submit svg {
+				display: block;
+			}
+			/* --- info -------------------------------------------------------- */
+			.info {
+				margin-top: clamp(1rem, 2.8vh, 2rem);
+				font-weight: 400;
+				font-size: clamp(1.15rem, 3vh, 1.85rem);
+				line-height: 1.28;
+			}
+			.info p {
+				margin: 0;
+			}
+
+			/* --- footer ------------------------------------------------------ */
+			.foot {
+				flex: 0 0 auto;
+				padding-top: clamp(1rem, 3vh, 2rem);
+			}
+			.contact {
+				margin: 0 0 clamp(0.4rem, 1.2vh, 0.75rem);
+				font-weight: 400;
+				font-size: clamp(1.25rem, 3.2vh, 2rem);
+			}
+			.contact a {
+				color: #ffffff;
+				font-weight: inherit;
+				text-decoration: underline;
+			}
+			.legal {
+				margin: 0;
+				font-weight: 500;
+				font-size: clamp(0.9rem, 2vh, 1.15rem);
+				color: rgba(255, 255, 255, 0.9);
+			}
+			.terms {
+				margin: clamp(0.25rem, 0.7vh, 0.45rem) 0 0;
+				font-weight: 400;
+				font-size: clamp(0.9rem, 2vh, 1.15rem);
+				color: rgba(255, 255, 255, 0.7);
+			}
+			.terms a {
+				color: inherit;
+				text-decoration: underline;
+			}
+
+			a {
+				color: inherit;
+			}
+
+			/* --- short viewports: keep it on one screen ---------------------- */
+			@media (max-height: 560px) {
+				.info {
+					display: none;
+				}
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				.field.shake {
+					animation: none;
+				}
+			}
+		</style>
+
+		<script>
+			// Basic, dependency-free email validation. Nothing is sent anywhere
+			// yet — later a valid submit redirects to our real signup form.
+			const form = document.getElementById('signup') as HTMLFormElement | null;
+			const field = form?.querySelector('.field') as HTMLElement | null;
+			const input = document.getElementById('email') as HTMLInputElement | null;
+			const submit = form?.querySelector('.submit') as HTMLButtonElement | null;
+
+			// Pragmatic RFC-ish check: something@something.tld, no spaces.
+			const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+			// Invalid input just nudges the field, macOS-password style — no
+			// message, no color change. Ignore repeat triggers while a shake is
+			// already playing so mashing the button doesn't snap it back.
+			const reject = () => {
+				input?.focus();
+				if (!field || field.classList.contains('shake')) return;
+				field.classList.add('shake');
+			};
+			field?.addEventListener('animationend', () => field.classList.remove('shake'));
+
+			form?.addEventListener('submit', (e) => {
+				e.preventDefault();
+				const value = (input?.value ?? '').trim();
+
+				if (!EMAIL_RE.test(value)) {
+					reject();
+					return;
+				}
+
+				// Valid. Lock the field — the real build redirects here, so
+				// visually nothing else changes.
+				input?.setAttribute('disabled', '');
+				submit?.setAttribute('disabled', '');
+				// TODO: window.location.href = `https://form.hack.sv/?email=${encodeURIComponent(value)}`;
+			});
+		</script>
 	</body>
 </html>

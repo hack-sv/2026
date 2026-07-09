@@ -11,6 +11,9 @@ importers:
       '@astrojs/cloudflare':
         specifier: ^13.1.10
         version: 13.1.10(astro@6.1.8(rollup@4.60.2))(workerd@1.20260415.1)(wrangler@4.83.0)
+      '@fontsource/nunito-sans':
+        specifier: ^5.2.7
+        version: 5.2.7
       astro:
         specifier: ^6.1.8
         version: 6.1.8(rollup@4.60.2)
@@ -441,6 +444,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource/nunito-sans@5.2.7':
+    resolution: {integrity: sha512-Vh+xhMsrH1eA9Q83Va82su3rDmNilYg+ur/TfHAOyr5kTpCOWMB8B1tDoJvSe+yJPpZ2jEWtnBHGqI2LUPVxUA==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -2044,6 +2050,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.27.7':
     optional: true
+
+  '@fontsource/nunito-sans@5.2.7': {}
 
   '@img/colour@1.1.0': {}
 

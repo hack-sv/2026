@@ -1,0 +1,70 @@
+---
+// Sponsor logos, stacked in a vertical column on the right. Uniform white
+// boxes, logo centered, each links to the sponsor. Data mirrors hacksv's
+// public/sponsors.json.
+const sponsors = [
+	{ name: 'X-Camp', website: 'https://x-camp.org', logo: 'sponsors/X-Camp.png' },
+	{ name: 'TRAE', website: 'https://trae.ai', logo: 'sponsors/TRAE.png' },
+	{ name: 'AWS', website: 'https://aws.amazon.com/', logo: 'sponsors/AWS.png' },
+];
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<aside class="sponsors" aria-label="Sponsors">
+	{
+		sponsors.map((s) => (
+			<a
+				class="sponsor"
+				href={`${s.website}?utm_source=hacksv&ref=hacksv`}
+				target="_blank"
+				rel="noopener noreferrer"
+				aria-label={s.name}
+			>
+				<img src={`${base}/${s.logo}`} alt={s.name} loading="lazy" />
+			</a>
+		))
+	}
+</aside>
+
+<style>
+	.sponsors {
+		position: fixed;
+		z-index: 2;
+		top: 50%;
+		right: clamp(1.5rem, 4vw, 3.75rem);
+		transform: translateY(-50%);
+		display: flex;
+		flex-direction: column;
+		gap: clamp(0.75rem, 1.6vh, 1.1rem);
+	}
+
+	.sponsor {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: clamp(9rem, 15vw, 13rem);
+		height: clamp(5.25rem, 10vh, 7rem);
+		padding: 0 clamp(1.5rem, 2.8vw, 2.5rem);
+		background: #ffffff;
+		border-radius: 0;
+	}
+	/* Cap the logo well inside the box: uniform optical height across all
+	   sponsors, with horizontal padding doing the framing. */
+	.sponsor img {
+		max-width: 100%;
+		max-height: clamp(3rem, 6vh, 4.25rem);
+		object-fit: contain;
+		transition: transform 0.25s ease;
+	}
+	.sponsor:hover img {
+		transform: scale(1.08);
+	}
+
+	/* Give the main column room; on narrow screens the sponsor rail would
+	   collide with the hero, so drop it there for now. */
+	@media (max-width: 900px) {
+		.sponsors {
+			display: none;
+		}
+	}
+</style>
