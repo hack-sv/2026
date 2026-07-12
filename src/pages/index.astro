@@ -8,308 +8,442 @@ import '@fontsource/nunito-sans/900.css';
 ---
 
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}/favicon.svg`} />
-		<link rel="icon" href={`${import.meta.env.BASE_URL}/favicon.ico`} />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="generator" content={Astro.generator} />
-		<title>hack.sv 2026</title>
-		<style is:global>
-			html {
-				background: #05060e;
-			}
-			html,
-			body {
-				margin: 0;
-				padding: 0;
-				height: 100%;
-				color: #ffffff;
-				font-family: 'Nunito Sans', system-ui, sans-serif;
-				-webkit-font-smoothing: antialiased;
-			}
-			body {
-				background: transparent;
-				/* One pager — never scroll. */
-				overflow: hidden;
-			}
-			* {
-				box-sizing: border-box;
-			}
-		</style>
-	</head>
-	<body>
-		<FlowerBackground />
-		<Sponsors />
+  <head>
+    <meta charset="utf-8" />
+    <script is:inline>
+      // Zero-gap handoff: instantly paint the last flower frame handed over from
+      // the previous same-origin page (see FlowerBackground) as the page
+      // background, so there's no gap while this page's canvas boots. Cleared by
+      // FlowerBackground once its live canvas draws.
+      try {
+        var __flowerFrame = sessionStorage.getItem('hacksv:flower-frame');
+        if (__flowerFrame) {
+          var __s = document.documentElement.style;
+          __s.backgroundImage = 'url("' + __flowerFrame + '")';
+          __s.backgroundSize = 'cover';
+          __s.backgroundPosition = 'center';
+          __s.imageRendering = 'pixelated';
+        }
+      } catch (e) {}
+    </script>
+    <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}/favicon.svg`} />
+    <link rel="icon" href={`${import.meta.env.BASE_URL}/favicon.ico`} />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>hack.sv 2026</title>
+    <style is:global>
+      html {
+        background: #05060e;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        color: #ffffff;
+        font-family: 'Nunito Sans', system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      body {
+        background: transparent;
+        /* One pager — never scroll. */
+        overflow: hidden;
+      }
+      * {
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <FlowerBackground />
+    <Sponsors />
 
-		<main class="page">
-			<section class="hero">
-				<img class="mark" src={`${import.meta.env.BASE_URL}/hack.sv.svg`} alt="" aria-hidden="true" />
+    <main class="page">
+      <section class="hero">
+        <img class="mark" src={`${import.meta.env.BASE_URL}/hack.sv.svg`} alt="" aria-hidden="true" />
 
-				<h1 class="title">
-					<span class="brand">hack.sv</span><br />
-					<span class="year">2026</span>
-				</h1>
+        <h1 class="title">
+          <span class="brand">hack.sv</span><br />
+          <span class="year">2026</span>
+        </h1>
 
-				<p class="date">August 29&ndash;30, 2026</p>
+        <p class="date">August 29&ndash;30, 2026</p>
 
-				<form class="cta" id="signup" novalidate>
-					<div class="field">
-						<input
-							id="email"
-							class="email"
-							type="email"
-							name="email"
-							inputmode="email"
-							autocomplete="email"
-							placeholder="your.email@hack.sv"
-							aria-label="Email address"
-							aria-describedby="cta-note"
-							required
-						/>
-						<button class="submit" type="submit" aria-label="Sign up">
-							<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
-								<path
-									d="M4 12h15M13 6l6 6-6 6"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"></path>
-							</svg>
-						</button>
-					</div>
-				</form>
+        <div class="cta">
+          <form class="field" id="signup" novalidate>
+            <svg class="lead-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+            </svg>
+            <input
+              id="email"
+              class="email"
+              type="email"
+              name="email"
+              inputmode="email"
+              autocomplete="email"
+              placeholder="your.email@hack.sv"
+              aria-label="Email address"
+              aria-describedby="cta-note"
+              required
+            />
+            <button class="submit" type="submit" aria-label="Sign up">
+              <svg class="arrow" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+                <path
+                  d="M4 12h15M13 6l6 6-6 6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"></path>
+              </svg>
+              <svg
+                class="spinner"
+                viewBox="0 0 24 24"
+                width="26"
+                height="26"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+              </svg>
+            </button>
+          </form>
 
-				<div class="info">
-					<p>This is where more info goes.</p>
-					<p>Multiple lines for future use.</p>
-					<p>Wow, this is so cool.</p>
-				</div>
-			</section>
+          <!-- Swapped in when an active dashboard session is detected. Whole
+               pill is a link; mail → app-shell glyph, arrow reused. -->
+          <a class="field field-link" id="dashboard-link" href="/dashboard">
+            <svg class="lead-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+              <path d="M3 9h18"></path>
+              <path d="M9 21V9"></path>
+            </svg>
+            <span class="dashboard-label">Go to dashboard</span>
+            <span class="submit" aria-hidden="true">
+              <svg class="arrow" viewBox="0 0 24 24" width="26" height="26">
+                <path
+                  d="M4 12h15M13 6l6 6-6 6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"></path>
+              </svg>
+            </span>
+          </a>
+        </div>
 
-			<footer class="foot">
-				<p class="contact">
-					Questions? <a href="mailto:team@hack.sv">team@hack.sv</a>
-				</p>
-				<p class="legal" id="cta-note">
-					<a href="https://hacksv.org" target="_blank" rel="noopener noreferrer">Hack SV</a> is a
-					501(c)(3) nonprofit organization (EIN: 39-3466775).
-				</p>
-				<p class="terms">
-					By entering your email, you agree to our <a href="/privacy">privacy policy</a> and
-					<a href="/conduct">code of conduct</a>.
-				</p>
-			</footer>
-		</main>
+        <div class="info">
+          <p>This is where more info goes.</p>
+          <p>Multiple lines for future use.</p>
+          <p>Wow, this is so cool.</p>
+        </div>
+      </section>
 
-		<style>
-			/* --- layout: one full-height column, footer pinned to bottom ----- */
-			.page {
-				position: relative;
-				z-index: 1;
-				height: 100svh;
-				display: flex;
-				flex-direction: column;
-				justify-content: space-between;
-				padding: clamp(1.5rem, 4vh, 3.25rem) clamp(1.5rem, 4vw, 3.75rem);
-				max-width: 60rem;
-			}
+      <footer class="foot">
+        <p class="contact">
+          Questions? <a href="mailto:team@hack.sv">team@hack.sv</a>
+        </p>
+        <p class="legal" id="cta-note">
+          <a href="https://hacksv.org" target="_blank" rel="noopener noreferrer">Hack SV</a> is a
+          501(c)(3) nonprofit organization (EIN: 39-3466775).
+        </p>
+        <p class="terms">
+          By entering your email, you agree to our <a href="/privacy">privacy policy</a> and
+          <a href="/conduct">code of conduct</a>.
+        </p>
+      </footer>
+    </main>
 
-			.hero {
-				display: flex;
-				flex-direction: column;
-				min-height: 0;
-			}
+    <style>
+      /* --- layout: one full-height column, footer pinned to bottom ----- */
+      .page {
+        position: relative;
+        z-index: 1;
+        height: 100svh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: clamp(1.5rem, 4vh, 3.25rem) clamp(1.5rem, 4vw, 3.75rem);
+        max-width: 60rem;
+      }
 
-			/* --- terminal mark ">." ------------------------------------------ */
-			.mark {
-				display: block;
-				align-self: flex-start;
-				width: auto;
-				height: clamp(2.25rem, 6.5vh, 4rem);
-				margin-bottom: clamp(0.35rem, 1.2vh, 0.9rem);
-			}
+      .hero {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
 
-			/* --- title ------------------------------------------------------- */
-			.title {
-				margin: 0;
-				line-height: 0.9;
-				letter-spacing: -0.03em;
-				font-size: clamp(4rem, 15.5vh, 9rem);
-			}
-			.brand {
-				font-weight: 900;
-			}
-			.year {
-				font-weight: 400;
-				letter-spacing: -0.02em;
-			}
+      /* --- terminal mark ">." ------------------------------------------ */
+      .mark {
+        display: block;
+        align-self: flex-start;
+        width: auto;
+        height: clamp(2.25rem, 6.5vh, 4rem);
+        margin-bottom: clamp(0.35rem, 1.2vh, 0.9rem);
+      }
 
-			.date {
-				margin: clamp(0.75rem, 2.2vh, 1.6rem) 0 0;
-				font-weight: 500;
-				font-size: clamp(1.35rem, 3.6vh, 2.35rem);
-				letter-spacing: -0.005em;
-			}
+      /* --- title ------------------------------------------------------- */
+      .title {
+        margin: 0;
+        line-height: 0.9;
+        letter-spacing: -0.03em;
+        font-size: clamp(4rem, 15.5vh, 9rem);
+      }
+      .brand {
+        font-weight: 900;
+      }
+      .year {
+        font-weight: 400;
+        letter-spacing: -0.02em;
+      }
 
-			/* --- CTA --------------------------------------------------------- */
-			.cta {
-				margin: clamp(1rem, 2.6vh, 1.9rem) 0 0;
-				width: min(100%, 34rem);
-			}
-			.field {
-				display: flex;
-				align-items: stretch;
-				background: #ffffff;
-				border: 2px solid #ffffff;
-				border-radius: 0;
-				overflow: hidden;
-			}
-			/* Invalid submit: gentle macOS-style nudge, no color change. */
-			.field.shake {
-				animation: shake 0.4s ease-in-out both;
-			}
-			@keyframes shake {
-				20% {
-					transform: translateX(-4px);
-				}
-				40% {
-					transform: translateX(3px);
-				}
-				60% {
-					transform: translateX(-2px);
-				}
-				80% {
-					transform: translateX(1px);
-				}
-			}
-			.email {
-				flex: 1 1 auto;
-				min-width: 0;
-				border: 0;
-				outline: 0;
-				background: transparent;
-				color: #05060e;
-				font-family: inherit;
-				font-weight: 300;
-				font-size: clamp(1.05rem, 2.5vh, 1.4rem);
-				padding: clamp(0.65rem, 1.7vh, 1rem) clamp(0.9rem, 2vw, 1.2rem);
-			}
-			.email::placeholder {
-				color: #9aa0aa;
-				font-weight: 300;
-			}
-			.submit {
-				flex: 0 0 auto;
-				display: grid;
-				place-items: center;
-				width: clamp(3rem, 6vw, 3.75rem);
-				border: 0;
-				background: transparent;
-				color: #05060e;
-				cursor: pointer;
-			}
-			.submit svg {
-				display: block;
-			}
-			/* --- info -------------------------------------------------------- */
-			.info {
-				margin-top: clamp(1rem, 2.8vh, 2rem);
-				font-weight: 400;
-				font-size: clamp(1.15rem, 3vh, 1.85rem);
-				line-height: 1.28;
-			}
-			.info p {
-				margin: 0;
-			}
+      .date {
+        margin: clamp(0.75rem, 2.2vh, 1.6rem) 0 0;
+        font-weight: 500;
+        font-size: clamp(1.35rem, 3.6vh, 2.35rem);
+        letter-spacing: -0.005em;
+      }
 
-			/* --- footer ------------------------------------------------------ */
-			.foot {
-				flex: 0 0 auto;
-				padding-top: clamp(1rem, 3vh, 2rem);
-			}
-			.contact {
-				margin: 0 0 clamp(0.4rem, 1.2vh, 0.75rem);
-				font-weight: 400;
-				font-size: clamp(1.25rem, 3.2vh, 2rem);
-			}
-			.contact a {
-				color: #ffffff;
-				font-weight: inherit;
-				text-decoration: underline;
-			}
-			.legal {
-				margin: 0;
-				font-weight: 500;
-				font-size: clamp(0.9rem, 2vh, 1.15rem);
-				color: rgba(255, 255, 255, 0.9);
-			}
-			.terms {
-				margin: clamp(0.25rem, 0.7vh, 0.45rem) 0 0;
-				font-weight: 400;
-				font-size: clamp(0.9rem, 2vh, 1.15rem);
-				color: rgba(255, 255, 255, 0.7);
-			}
-			.terms a {
-				color: inherit;
-				text-decoration: underline;
-			}
+      /* --- CTA --------------------------------------------------------- */
+      .cta {
+        margin: clamp(1rem, 2.6vh, 1.9rem) 0 0;
+        width: min(100%, 34rem);
+        /* Both pills share one cell so the auth swap crossfades in place with
+           no layout shift — the container sizes to the (equal-height) pills. */
+        display: grid;
+      }
+      .field {
+        grid-area: 1 / 1;
+        display: flex;
+        align-items: center;
+        background: #ffffff;
+        border: 2px solid #ffffff;
+        border-radius: 0;
+        overflow: hidden;
+      }
 
-			a {
-				color: inherit;
-			}
+      /* --- auth swap: email form <-> "Go to dashboard" link ------------- */
+      .field-link {
+        text-decoration: none;
+        cursor: pointer;
+      }
+      /* Default: field visible, dashboard link hidden. .authed flips them
+         instantly — no transition. */
+      .field-link {
+        display: none;
+      }
+      .cta.authed #signup {
+        display: none;
+      }
+      .cta.authed .field-link {
+        display: flex;
+      }
+      .dashboard-label {
+        flex: 1 1 auto;
+        min-width: 0;
+        color: #05060e;
+        font-family: inherit;
+        font-weight: 300;
+        font-size: clamp(1.05rem, 2.5vh, 1.4rem);
+        padding: clamp(0.65rem, 1.7vh, 1rem) clamp(0.9rem, 2vw, 1.2rem);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .lead-icon {
+        flex: 0 0 auto;
+        display: block;
+        color: #05060e;
+        margin-left: clamp(0.9rem, 2vw, 1.2rem);
+      }
+      /* Invalid submit: gentle macOS-style nudge, no color change. */
+      .field.shake {
+        animation: shake 0.4s ease-in-out both;
+      }
+      @keyframes shake {
+        20% {
+          transform: translateX(-4px);
+        }
+        40% {
+          transform: translateX(3px);
+        }
+        60% {
+          transform: translateX(-2px);
+        }
+        80% {
+          transform: translateX(1px);
+        }
+      }
+      .email {
+        flex: 1 1 auto;
+        min-width: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: #05060e;
+        font-family: inherit;
+        font-weight: 300;
+        font-size: clamp(1.05rem, 2.5vh, 1.4rem);
+        padding: clamp(0.65rem, 1.7vh, 1rem) clamp(0.9rem, 2vw, 1.2rem);
+      }
+      .email::placeholder {
+        color: #9aa0aa;
+        font-weight: 300;
+      }
+      .submit {
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        width: clamp(3rem, 6vw, 3.75rem);
+        border: 0;
+        background: transparent;
+        color: #05060e;
+        cursor: pointer;
+      }
+      .submit svg {
+        display: block;
+      }
+      /* Swap the arrow for a spinner while redirecting to the dashboard. */
+      .submit .spinner {
+        display: none;
+      }
+      .submit.loading .arrow {
+        display: none;
+      }
+      .submit.loading .spinner {
+        display: block;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      /* --- info -------------------------------------------------------- */
+      .info {
+        margin-top: clamp(1rem, 2.8vh, 2rem);
+        font-weight: 400;
+        font-size: clamp(1.15rem, 3vh, 1.85rem);
+        line-height: 1.28;
+      }
+      .info p {
+        margin: 0;
+      }
 
-			/* --- short viewports: keep it on one screen ---------------------- */
-			@media (max-height: 560px) {
-				.info {
-					display: none;
-				}
-			}
+      /* --- footer ------------------------------------------------------ */
+      .foot {
+        flex: 0 0 auto;
+        padding-top: clamp(1rem, 3vh, 2rem);
+      }
+      .contact {
+        margin: 0 0 clamp(0.4rem, 1.2vh, 0.75rem);
+        font-weight: 400;
+        font-size: clamp(1.25rem, 3.2vh, 2rem);
+      }
+      .contact a {
+        color: #ffffff;
+        font-weight: inherit;
+        text-decoration: underline;
+      }
+      .legal {
+        margin: 0;
+        font-weight: 500;
+        font-size: clamp(0.9rem, 2vh, 1.15rem);
+        color: rgba(255, 255, 255, 0.9);
+      }
+      .terms {
+        margin: clamp(0.25rem, 0.7vh, 0.45rem) 0 0;
+        font-weight: 400;
+        font-size: clamp(0.9rem, 2vh, 1.15rem);
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .terms a {
+        color: inherit;
+        text-decoration: underline;
+      }
 
-			@media (prefers-reduced-motion: reduce) {
-				.field.shake {
-					animation: none;
-				}
-			}
-		</style>
+      a {
+        color: inherit;
+      }
 
-		<script>
-			// Basic, dependency-free email validation. Nothing is sent anywhere
-			// yet — later a valid submit redirects to our real signup form.
-			const form = document.getElementById('signup') as HTMLFormElement | null;
-			const field = form?.querySelector('.field') as HTMLElement | null;
-			const input = document.getElementById('email') as HTMLInputElement | null;
-			const submit = form?.querySelector('.submit') as HTMLButtonElement | null;
+      /* --- short viewports: keep it on one screen ---------------------- */
+      @media (max-height: 560px) {
+        .info {
+          display: none;
+        }
+      }
 
-			// Pragmatic RFC-ish check: something@something.tld, no spaces.
-			const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      @media (prefers-reduced-motion: reduce) {
+        .field.shake {
+          animation: none;
+        }
+      }
+    </style>
 
-			// Invalid input just nudges the field, macOS-password style — no
-			// message, no color change. Ignore repeat triggers while a shake is
-			// already playing so mashing the button doesn't snap it back.
-			const reject = () => {
-				input?.focus();
-				if (!field || field.classList.contains('shake')) return;
-				field.classList.add('shake');
-			};
-			field?.addEventListener('animationend', () => field.classList.remove('shake'));
+    <script>
+      // Basic, dependency-free email validation. Nothing is sent anywhere
+      // yet — later a valid submit redirects to our real signup form.
+      const form = document.getElementById('signup') as HTMLFormElement | null;
+      // The form element *is* the white pill (.field), so shake/focus target it.
+      const field = form;
+      const input = document.getElementById('email') as HTMLInputElement | null;
+      const submit = form?.querySelector('.submit') as HTMLButtonElement | null;
 
-			form?.addEventListener('submit', (e) => {
-				e.preventDefault();
-				const value = (input?.value ?? '').trim();
+      // Pragmatic RFC-ish check: something@something.tld, no spaces.
+      const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-				if (!EMAIL_RE.test(value)) {
-					reject();
-					return;
-				}
+      // Invalid input just nudges the field, macOS-password style — no
+      // message, no color change. Ignore repeat triggers while a shake is
+      // already playing so mashing the button doesn't snap it back.
+      const reject = () => {
+        input?.focus();
+        if (!field || field.classList.contains('shake')) return;
+        field.classList.add('shake');
+      };
+      field?.addEventListener('animationend', () => field.classList.remove('shake'));
 
-				// Valid. Lock the field — the real build redirects here, so
-				// visually nothing else changes.
-				input?.setAttribute('disabled', '');
-				submit?.setAttribute('disabled', '');
-				// TODO: window.location.href = `https://form.hack.sv/?email=${encodeURIComponent(value)}`;
-			});
-		</script>
-	</body>
+      // Clicking anywhere in the field (icon, padding) focuses the input —
+      // except the submit button. preventDefault keeps a mid-drag selection
+      // from clearing.
+      field?.addEventListener('mousedown', (e) => {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.closest('.submit')) return;
+        e.preventDefault();
+        input?.focus();
+      });
+
+      form?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const value = (input?.value ?? '').trim();
+
+        if (!EMAIL_RE.test(value)) {
+          reject();
+          return;
+        }
+
+        // Valid. Lock the field and show the spinner, then hand off to the
+        // dashboard's auth page with the email prefilled (same origin in prod).
+        input?.setAttribute('disabled', '');
+        submit?.setAttribute('disabled', '');
+        submit?.classList.add('loading');
+        window.location.href = `/auth?email=${encodeURIComponent(value)}`;
+      });
+
+      // If a dashboard session is already active, swap the email pill for the
+      // "Go to dashboard" link. /auth/session unseals the cookie server-side and
+      // returns { user } (never a hard 401). Same-origin in prod (hack.sv); in
+      // local dev this quietly fails and the email field simply stays.
+      const cta = document.querySelector('.cta') as HTMLElement | null;
+      fetch('/auth/session', { credentials: 'same-origin' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data && data.user) cta?.classList.add('authed');
+        })
+        .catch(() => {});
+    </script>
+  </body>
 </html>

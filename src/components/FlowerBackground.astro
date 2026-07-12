@@ -13,16 +13,69 @@
     image-rendering: crisp-edges;
     image-rendering: pixelated;
     pointer-events: none;
+    /* Hidden until the first live frame draws so the handed-over last-frame
+       bridge (page background) shows through instead of an opaque-black canvas. */
+    opacity: 0;
   }
 </style>
 
 <script>
+  // --- shared deterministic seed + clock -----------------------------------
+  // The flower field is a pure function of (seed, time, aspect). Persisting the
+  // seed and anchoring the clock to a shared epoch — both keyed on the hack.sv
+  // origin, which /2026 and /dashboard share — lets the dashboard continue this
+  // exact animation mid-drift instead of restarting it. Keep in lockstep with
+  // dashboard/src/FlowerBackground.tsx.
+  const SEED_KEY = 'hacksv:flower-seed';
+  const EPOCH_KEY = 'hacksv:flower-epoch';
+  // Last rendered frame, handed to the next same-origin page so it can paint it
+  // instantly (as the page background) while its own canvas boots — zero gap.
+  const FRAME_KEY = 'hacksv:flower-frame';
+  // Re-anchor if the stored epoch is implausibly old, so the time value stays
+  // small enough for float32 precision (a >6h-old tab/entry re-anchors, a rare
+  // one-time drift jump).
+  const MAX_EPOCH_AGE_MS = 6 * 60 * 60 * 1000;
+  const readNum = (key: string): number | null => {
+    try {
+      const v = localStorage.getItem(key);
+      if (v == null) return null;
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : null;
+    } catch {
+      return null; // localStorage can throw (private mode, blocked cookies)
+    }
+  };
+  const writeNum = (key: string, n: number) => {
+    try {
+      localStorage.setItem(key, String(n));
+    } catch {
+      /* ignore — ephemeral for this page load */
+    }
+  };
+  const flowerSeed = (): number => {
+    const existing = readNum(SEED_KEY);
+    if (existing != null) return existing;
+    const s = Math.random() * 1000;
+    writeNum(SEED_KEY, s);
+    return s;
+  };
+  const flowerEpochMs = (): number => {
+    const now = Date.now();
+    const existing = readNum(EPOCH_KEY);
+    if (existing != null && now - existing >= 0 && now - existing < MAX_EPOCH_AGE_MS) {
+      return existing;
+    }
+    writeNum(EPOCH_KEY, now);
+    return now;
+  };
+
   const canvas = document.getElementById('flower-bg') as HTMLCanvasElement | null;
   if (canvas) {
     const gl = canvas.getContext('webgl2', { antialias: false, premultipliedAlpha: false, alpha: false });
 
     const fail = (msg: string) => {
       console.error('[FlowerBackground]', msg);
+      canvas.style.opacity = '1'; // ensure the fallback fill is visible
       const ctx = canvas.getContext('2d');
       if (ctx) {
         canvas.width = window.innerWidth;
@@ -408,7 +461,8 @@ void main() {
         const displayUSeed = gl.getUniformLocation(displayProg, 'uSeed');
         const displayUDither = gl.getUniformLocation(displayProg, 'uDither');
 
-        const seed = Math.random() * 1000;
+        const seed = flowerSeed();
+        const epoch = flowerEpochMs();
         const CLUSTERS = 15;
 
         // --- CPU port of the scene shader's per-cluster placement math. ---
@@ -547,6 +601,9 @@ void main() {
         let running = !document.hidden;
         // Easter-egg toggle: window.removeDither()/restoreDither() flip this.
         let dither = 1.0;
+        // Canvas starts hidden (opacity 0 in CSS) so the handed-over last-frame
+        // bridge shows until we have a real frame; flipped true on first draw.
+        let revealed = false;
 
         canvas.addEventListener('webglcontextlost', (event) => {
           event.preventDefault();
@@ -674,7 +731,9 @@ void main() {
           rafId = 0;
           if (!running) return;
 
-          const elapsed = prefersReducedMotion.matches ? 0 : (performance.now() - start) / 1000;
+          // Shared-epoch clock (not per-load performance.now()) so the animation
+          // phase is continuous into the dashboard. See flowerEpochMs().
+          const elapsed = prefersReducedMotion.matches ? 0 : (Date.now() - epoch) / 1000;
           const frame = Math.floor(elapsed * STEP_FPS);
           const tQuantized = frame / STEP_FPS;
           // Motion speed is decoupled from the frame rate: TIME_SCALE slows the
@@ -691,6 +750,20 @@ void main() {
           } else if (needsDisplay) {
             needsDisplay = false;
             renderDisplayFrame(animTime);
+          }
+
+          if (!revealed) {
+            // First live frame on screen — reveal the canvas and drop the
+            // handed-over last-frame bridge painted as the page background.
+            revealed = true;
+            canvas.style.opacity = '1';
+            try {
+              const rootStyle = document.documentElement.style;
+              rootStyle.backgroundImage = '';
+              rootStyle.imageRendering = '';
+            } catch (e) {
+              /* ignore */
+            }
           }
 
           if (!prefersReducedMotion.matches) {
@@ -733,6 +806,23 @@ void main() {
         };
         (window as any).removeDither = () => applyDither(false);
         (window as any).restoreDither = () => applyDither(true);
+
+        // On navigating away, snapshot the current frame so the next same-origin
+        // page can paint it instantly and bridge its WebGL boot with zero gap.
+        // Draw then read back in one task — no preserveDrawingBuffer needed.
+        const captureFrame = () => {
+          try {
+            const elapsed = prefersReducedMotion.matches ? 0 : (Date.now() - epoch) / 1000;
+            const frame = Math.floor(elapsed * STEP_FPS);
+            const animTime = (frame / STEP_FPS) * TIME_SCALE;
+            renderSceneTexture(animTime);
+            renderDisplayFrame(animTime);
+            sessionStorage.setItem(FRAME_KEY, canvas.toDataURL('image/jpeg', 0.92));
+          } catch (e) {
+            /* ignore — the next page falls back to the navy background */
+          }
+        };
+        window.addEventListener('pagehide', captureFrame);
 
         resize();
         scheduleRender();
