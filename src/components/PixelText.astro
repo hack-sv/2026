@@ -32,394 +32,394 @@
  *   </PixelText>
  */
 interface Props {
-	/** Approx height of the capital letters, in pixels. Drives the (integer, dither-aligned) pixel size. */
-	resolution?: number;
-	/** Foreground color for "on" pixels. Defaults to the slotted element's own color. */
-	color?: string;
-	/** Fill color for "off" pixels (within the text's bounding box). Defaults to transparent. */
-	background?: string;
-	/** Inside/outside cutoff (0–1) for sampling. */
-	threshold?: number;
-	/** Grid-fit the type metrics to the pixel grid (hinting). Defaults to true. */
-	snap?: boolean;
-	/** "center" (default): center point-sample, sharp. "area": average coverage, softer. */
-	sample?: 'center' | 'area';
-	/** Drop "on" pixels with no orthogonal neighbor (kills stray floaters). Defaults to true. */
-	despeckle?: boolean;
-	/** Keep ≥1 empty column between neighboring glyphs so they never merge. Defaults to true. */
-	separate?: boolean;
-	class?: string;
+  /** Approx height of the capital letters, in pixels. Drives the (integer, dither-aligned) pixel size. */
+  resolution?: number;
+  /** Foreground color for "on" pixels. Defaults to the slotted element's own color. */
+  color?: string;
+  /** Fill color for "off" pixels (within the text's bounding box). Defaults to transparent. */
+  background?: string;
+  /** Inside/outside cutoff (0–1) for sampling. */
+  threshold?: number;
+  /** Grid-fit the type metrics to the pixel grid (hinting). Defaults to true. */
+  snap?: boolean;
+  /** "center" (default): center point-sample, sharp. "area": average coverage, softer. */
+  sample?: 'center' | 'area';
+  /** Drop "on" pixels with no orthogonal neighbor (kills stray floaters). Defaults to true. */
+  despeckle?: boolean;
+  /** Keep ≥1 empty column between neighboring glyphs so they never merge. Defaults to true. */
+  separate?: boolean;
+  class?: string;
 }
 
 const {
-	resolution = 22,
-	color,
-	background = 'transparent',
-	threshold = 0.5,
-	snap = true,
-	sample = 'center',
-	despeckle = true,
-	separate = true,
-	class: className,
+  resolution = 22,
+  color,
+  background = 'transparent',
+  threshold = 0.5,
+  snap = true,
+  sample = 'center',
+  despeckle = true,
+  separate = true,
+  class: className,
 } = Astro.props;
 ---
 
 <pixel-text
-	data-resolution={resolution}
-	data-threshold={threshold}
-	data-background={background}
-	data-color={color}
-	data-snap={String(snap)}
-	data-sample={sample}
-	data-despeckle={String(despeckle)}
-	data-separate={String(separate)}
-	class:list={['pixel-text', className]}
+  data-resolution={resolution}
+  data-threshold={threshold}
+  data-background={background}
+  data-color={color}
+  data-snap={String(snap)}
+  data-sample={sample}
+  data-despeckle={String(despeckle)}
+  data-separate={String(separate)}
+  class:list={['pixel-text', className]}
 >
-	<slot />
+  <slot />
 </pixel-text>
 
 <style>
-	.pixel-text {
-		display: inline-block;
-		position: relative;
-		line-height: 0;
-	}
-	.pixel-text > :global(:not(canvas)) {
-		margin: 0;
-	}
-	/* Once rendered, keep the source in the layout + a11y tree but invisible. */
-	.pixel-text[data-rendered] > :global(:not(canvas)) {
-		opacity: 0;
-	}
-	/* Full-viewport buffer canvas, upscaled identically to #flower-bg. */
-	.pixel-text > :global(canvas) {
-		position: fixed;
-		inset: 0;
-		width: 100vw;
-		height: 100vh;
-		pointer-events: none;
-		image-rendering: pixelated;
-	}
+  .pixel-text {
+    display: inline-block;
+    position: relative;
+    line-height: 0;
+  }
+  .pixel-text > :global(:not(canvas)) {
+    margin: 0;
+  }
+  /* Once rendered, keep the source in the layout + a11y tree but invisible. */
+  .pixel-text[data-rendered] > :global(:not(canvas)) {
+    opacity: 0;
+  }
+  /* Full-viewport buffer canvas, upscaled identically to #flower-bg. */
+  .pixel-text > :global(canvas) {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    image-rendering: pixelated;
+  }
 </style>
 
 <script>
-	const PAD = 2; // cells of breathing room around the content
-	const GPAD = 1; // cells of margin around each glyph raster (catches overhang)
-	const SS = 4; // supersampling for coverage sampling
+  const PAD = 2; // cells of breathing room around the content
+  const GPAD = 1; // cells of margin around each glyph raster (catches overhang)
+  const SS = 4; // supersampling for coverage sampling
 
-	type Glyph = {
-		mask: Uint8Array;
-		cols: number;
-		penCol: number;
-		left: Int16Array;
-		right: Int16Array;
-		hasInk: boolean;
-	};
-	type Cell = { c: number; r: number };
+  type Glyph = {
+    mask: Uint8Array;
+    cols: number;
+    penCol: number;
+    left: Int16Array;
+    right: Int16Array;
+    hasInk: boolean;
+  };
+  type Cell = { c: number; r: number };
 
-	class PixelText extends HTMLElement {
-		private frame = 0;
-		private probe = document.createElement('canvas').getContext('2d')!;
+  class PixelText extends HTMLElement {
+    private frame = 0;
+    private probe = document.createElement('canvas').getContext('2d')!;
 
-		connectedCallback() {
-			if (document.fonts?.ready) document.fonts.ready.then(() => this.schedule());
-			else this.schedule();
+    connectedCallback() {
+      if (document.fonts?.ready) document.fonts.ready.then(() => this.schedule());
+      else this.schedule();
 
-			const source = this.source;
-			if (source) new ResizeObserver(() => this.schedule()).observe(source);
-			window.addEventListener('resize', this.schedule);
-			window.addEventListener('scroll', this.schedule, { passive: true });
-		}
+      const source = this.source;
+      if (source) new ResizeObserver(() => this.schedule()).observe(source);
+      window.addEventListener('resize', this.schedule);
+      window.addEventListener('scroll', this.schedule, { passive: true });
+    }
 
-		private get source(): HTMLElement | null {
-			for (const child of Array.from(this.children)) {
-				if (child.tagName !== 'CANVAS') return child as HTMLElement;
-			}
-			return null;
-		}
+    private get source(): HTMLElement | null {
+      for (const child of Array.from(this.children)) {
+        if (child.tagName !== 'CANVAS') return child as HTMLElement;
+      }
+      return null;
+    }
 
-		private schedule = () => {
-			if (this.frame) return;
-			this.frame = requestAnimationFrame(() => {
-				this.frame = 0;
-				this.render();
-			});
-		};
+    private schedule = () => {
+      if (this.frame) return;
+      this.frame = requestAnimationFrame(() => {
+        this.frame = 0;
+        this.render();
+      });
+    };
 
-		private render() {
-			const source = this.source;
-			if (!source || !source.isConnected) return;
+    private render() {
+      const source = this.source;
+      if (!source || !source.isConnected) return;
 
-			const resolution = Math.max(4, parseFloat(this.dataset.resolution || '22'));
-			const threshold = clamp(parseFloat(this.dataset.threshold || '0.5'), 0.01, 1);
-			const snap = this.dataset.snap !== 'false';
-			const useCenter = this.dataset.sample !== 'area';
-			const despeckle = this.dataset.despeckle !== 'false';
-			const separate = this.dataset.separate !== 'false';
-			const cs = getComputedStyle(source);
-			const fg = this.dataset.color || cs.color;
-			const bg = this.dataset.background || 'transparent';
-			const hasBg = bg !== 'transparent' && bg !== 'none' && bg !== '';
+      const resolution = Math.max(4, parseFloat(this.dataset.resolution || '22'));
+      const threshold = clamp(parseFloat(this.dataset.threshold || '0.5'), 0.01, 1);
+      const snap = this.dataset.snap !== 'false';
+      const useCenter = this.dataset.sample !== 'area';
+      const despeckle = this.dataset.despeckle !== 'false';
+      const separate = this.dataset.separate !== 'false';
+      const cs = getComputedStyle(source);
+      const fg = this.dataset.color || cs.color;
+      const bg = this.dataset.background || 'transparent';
+      const hasBg = bg !== 'transparent' && bg !== 'none' && bg !== '';
 
-			// Match the flower canvas's buffer resolution so both upscale identically.
-			const vw = Math.max(1, window.innerWidth);
-			const vh = Math.max(1, window.innerHeight);
-			const flower = document.getElementById('flower-bg') as HTMLCanvasElement | null;
-			let bw: number;
-			let bh: number;
-			if (flower && flower.width > 1 && flower.height > 1) {
-				bw = flower.width;
-				bh = flower.height;
-			} else {
-				bw = Math.max(1, Math.round(vw / 3));
-				bh = Math.max(1, Math.round(vh / 3));
-			}
-			const s = vw / bw; // CSS px per buffer pixel
+      // Match the flower canvas's buffer resolution so both upscale identically.
+      const vw = Math.max(1, window.innerWidth);
+      const vh = Math.max(1, window.innerHeight);
+      const flower = document.getElementById('flower-bg') as HTMLCanvasElement | null;
+      let bw: number;
+      let bh: number;
+      if (flower && flower.width > 1 && flower.height > 1) {
+        bw = flower.width;
+        bh = flower.height;
+      } else {
+        bw = Math.max(1, Math.round(vw / 3));
+        bh = Math.max(1, Math.round(vh / 3));
+      }
+      const s = vw / bw; // CSS px per buffer pixel
 
-			const rect = source.getBoundingClientRect();
-			if (rect.width < 1 || rect.height < 1) return;
+      const rect = source.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return;
 
-			// --- font + metrics (buffer-pixel space), grid-fitted ---
-			const cssFontSize = parseFloat(cs.fontSize);
-			const family = cs.fontFamily;
-			const weight = cs.fontWeight;
-			const fstyle = cs.fontStyle;
-			const lsCss = parseFloat(cs.letterSpacing) || 0;
-			const cssLineH = cs.lineHeight === 'normal' ? cssFontSize * 1.2 : parseFloat(cs.lineHeight);
-			const alignRaw = cs.textAlign;
-			const align = alignRaw === 'center' ? 'center' : alignRaw === 'right' || alignRaw === 'end' ? 'right' : 'left';
+      // --- font + metrics (buffer-pixel space), grid-fitted ---
+      const cssFontSize = parseFloat(cs.fontSize);
+      const family = cs.fontFamily;
+      const weight = cs.fontWeight;
+      const fstyle = cs.fontStyle;
+      const lsCss = parseFloat(cs.letterSpacing) || 0;
+      const cssLineH = cs.lineHeight === 'normal' ? cssFontSize * 1.2 : parseFloat(cs.lineHeight);
+      const alignRaw = cs.textAlign;
+      const align = alignRaw === 'center' ? 'center' : alignRaw === 'right' || alignRaw === 'end' ? 'right' : 'left';
 
-			// Cap-height in CSS px → choose integer k so caps are ~`resolution` cells tall.
-			this.probe.font = `${fstyle} ${weight} ${cssFontSize}px ${family}`;
-			const capHcss = this.probe.measureText('H').actualBoundingBoxAscent || cssFontSize * 0.72;
-			const k = Math.max(1, Math.round(capHcss / s / resolution));
+      // Cap-height in CSS px → choose integer k so caps are ~`resolution` cells tall.
+      this.probe.font = `${fstyle} ${weight} ${cssFontSize}px ${family}`;
+      const capHcss = this.probe.measureText('H').actualBoundingBoxAscent || cssFontSize * 0.72;
+      const k = Math.max(1, Math.round(capHcss / s / resolution));
 
-			const fsBuf0 = cssFontSize / s;
-			this.probe.font = `${fstyle} ${weight} ${fsBuf0}px ${family}`;
-			const capH0 = this.probe.measureText('H').actualBoundingBoxAscent || fsBuf0 * 0.72;
+      const fsBuf0 = cssFontSize / s;
+      this.probe.font = `${fstyle} ${weight} ${fsBuf0}px ${family}`;
+      const capH0 = this.probe.measureText('H').actualBoundingBoxAscent || fsBuf0 * 0.72;
 
-			let fsBuf = fsBuf0;
-			let capAscent = capH0;
-			if (snap && capH0 > 0) {
-				const capCells = Math.max(1, Math.round(capH0 / k));
-				capAscent = capCells * k;
-				fsBuf = (fsBuf0 * capAscent) / capH0;
-			}
-			const fontStr = `${fstyle} ${weight} ${fsBuf}px ${family}`;
-			const lsBuf = lsCss / s;
-			this.probe.font = fontStr;
-			try {
-				(this.probe as any).letterSpacing = `${lsBuf}px`;
-			} catch {}
-			const descent = this.probe.measureText('Hg').fontBoundingBoxDescent || fsBuf * 0.2;
-			let lineHBuf = (cssLineH / s) * (fsBuf / fsBuf0);
-			if (snap) lineHBuf = Math.max(k, Math.round(lineHBuf / k) * k);
-			const lineRowStep = Math.max(1, Math.round(lineHBuf / k));
-			const rowsLine = Math.ceil((capAscent + descent) / k);
+      let fsBuf = fsBuf0;
+      let capAscent = capH0;
+      if (snap && capH0 > 0) {
+        const capCells = Math.max(1, Math.round(capH0 / k));
+        capAscent = capCells * k;
+        fsBuf = (fsBuf0 * capAscent) / capH0;
+      }
+      const fontStr = `${fstyle} ${weight} ${fsBuf}px ${family}`;
+      const lsBuf = lsCss / s;
+      this.probe.font = fontStr;
+      try {
+        (this.probe as any).letterSpacing = `${lsBuf}px`;
+      } catch {}
+      const descent = this.probe.measureText('Hg').fontBoundingBoxDescent || fsBuf * 0.2;
+      let lineHBuf = (cssLineH / s) * (fsBuf / fsBuf0);
+      if (snap) lineHBuf = Math.max(k, Math.round(lineHBuf / k) * k);
+      const lineRowStep = Math.max(1, Math.round(lineHBuf / k));
+      const rowsLine = Math.ceil((capAscent + descent) / k);
 
-			// --- lay out each line, per-glyph with collision spacing ---
-			const lines = source.innerText.replace(/\n+$/g, '').split('\n');
-			const laidOut = lines.map((line) =>
-				this.layoutLine(line, fontStr, lsBuf, capAscent, k, rowsLine, separate, useCenter, threshold),
-			);
-			const contentCols = Math.max(1, ...laidOut.map((l) => l.width));
-			const contentRows = (lines.length - 1) * lineRowStep + rowsLine;
-			const cols = contentCols + PAD * 2;
-			const rows = contentRows + PAD * 2;
+      // --- lay out each line, per-glyph with collision spacing ---
+      const lines = source.innerText.replace(/\n+$/g, '').split('\n');
+      const laidOut = lines.map((line) =>
+        this.layoutLine(line, fontStr, lsBuf, capAscent, k, rowsLine, separate, useCenter, threshold),
+      );
+      const contentCols = Math.max(1, ...laidOut.map((l) => l.width));
+      const contentRows = (lines.length - 1) * lineRowStep + rowsLine;
+      const cols = contentCols + PAD * 2;
+      const rows = contentRows + PAD * 2;
 
-			// --- assemble the on/off grid ---
-			const on = new Uint8Array(cols * rows);
-			for (let i = 0; i < laidOut.length; i++) {
-				const lw = laidOut[i].width;
-				const xoff = align === 'center' ? Math.round((contentCols - lw) / 2) : align === 'right' ? contentCols - lw : 0;
-				for (const cell of laidOut[i].cells) {
-					const C = PAD + xoff + cell.c;
-					const R = PAD + i * lineRowStep + cell.r;
-					if (C >= 0 && C < cols && R >= 0 && R < rows) on[R * cols + C] = 1;
-				}
-			}
+      // --- assemble the on/off grid ---
+      const on = new Uint8Array(cols * rows);
+      for (let i = 0; i < laidOut.length; i++) {
+        const lw = laidOut[i].width;
+        const xoff = align === 'center' ? Math.round((contentCols - lw) / 2) : align === 'right' ? contentCols - lw : 0;
+        for (const cell of laidOut[i].cells) {
+          const C = PAD + xoff + cell.c;
+          const R = PAD + i * lineRowStep + cell.r;
+          if (C >= 0 && C < cols && R >= 0 && R < rows) on[R * cols + C] = 1;
+        }
+      }
 
-			if (despeckle) {
-				const cleaned = on.slice();
-				for (let r = 0; r < rows; r++) {
-					for (let c = 0; c < cols; c++) {
-						if (!on[r * cols + c]) continue;
-						const up = r > 0 && on[(r - 1) * cols + c];
-						const dn = r < rows - 1 && on[(r + 1) * cols + c];
-						const lf = c > 0 && on[r * cols + c - 1];
-						const rt = c < cols - 1 && on[r * cols + c + 1];
-						if (!up && !dn && !lf && !rt) cleaned[r * cols + c] = 0;
-					}
-				}
-				on.set(cleaned);
-			}
+      if (despeckle) {
+        const cleaned = on.slice();
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            if (!on[r * cols + c]) continue;
+            const up = r > 0 && on[(r - 1) * cols + c];
+            const dn = r < rows - 1 && on[(r + 1) * cols + c];
+            const lf = c > 0 && on[r * cols + c - 1];
+            const rt = c < cols - 1 && on[r * cols + c + 1];
+            if (!up && !dn && !lf && !rt) cleaned[r * cols + c] = 0;
+          }
+        }
+        on.set(cleaned);
+      }
 
-			// --- paint into the full-viewport buffer canvas ---
-			const gridBufLeft = Math.round(rect.left / s / k) * k;
-			const gridBufTop = Math.round(rect.top / s / k) * k;
-			let disp = this.querySelector('canvas') as HTMLCanvasElement | null;
-			if (!disp) {
-				disp = document.createElement('canvas');
-				disp.setAttribute('aria-hidden', 'true');
-				this.appendChild(disp);
-			}
-			disp.width = bw;
-			disp.height = bh;
-			const dg = disp.getContext('2d')!;
-			dg.imageSmoothingEnabled = false;
-			dg.clearRect(0, 0, bw, bh);
-			const originX = gridBufLeft - PAD * k;
-			const originY = gridBufTop - PAD * k;
-			for (let r = 0; r < rows; r++) {
-				for (let c = 0; c < cols; c++) {
-					const isOn = on[r * cols + c];
-					if (!isOn && !hasBg) continue;
-					dg.fillStyle = isOn ? fg : bg;
-					dg.fillRect(originX + c * k, originY + r * k, k, k);
-				}
-			}
+      // --- paint into the full-viewport buffer canvas ---
+      const gridBufLeft = Math.round(rect.left / s / k) * k;
+      const gridBufTop = Math.round(rect.top / s / k) * k;
+      let disp = this.querySelector('canvas') as HTMLCanvasElement | null;
+      if (!disp) {
+        disp = document.createElement('canvas');
+        disp.setAttribute('aria-hidden', 'true');
+        this.appendChild(disp);
+      }
+      disp.width = bw;
+      disp.height = bh;
+      const dg = disp.getContext('2d')!;
+      dg.imageSmoothingEnabled = false;
+      dg.clearRect(0, 0, bw, bh);
+      const originX = gridBufLeft - PAD * k;
+      const originY = gridBufTop - PAD * k;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const isOn = on[r * cols + c];
+          if (!isOn && !hasBg) continue;
+          dg.fillStyle = isOn ? fg : bg;
+          dg.fillRect(originX + c * k, originY + r * k, k, k);
+        }
+      }
 
-			this.dataset.rendered = '';
-		}
+      this.dataset.rendered = '';
+    }
 
-		/** Lay out one line: rasterize each glyph, place left→right, keep a gap where they'd merge. */
-		private layoutLine(
-			line: string,
-			fontStr: string,
-			lsBuf: number,
-			capAscent: number,
-			k: number,
-			rowsLine: number,
-			separate: boolean,
-			useCenter: boolean,
-			threshold: number,
-		): { cells: Cell[]; width: number } {
-			this.probe.font = fontStr;
-			try {
-				(this.probe as any).letterSpacing = `${lsBuf}px`;
-			} catch {}
+    /** Lay out one line: rasterize each glyph, place left→right, keep a gap where they'd merge. */
+    private layoutLine(
+      line: string,
+      fontStr: string,
+      lsBuf: number,
+      capAscent: number,
+      k: number,
+      rowsLine: number,
+      separate: boolean,
+      useCenter: boolean,
+      threshold: number,
+    ): { cells: Cell[]; width: number } {
+      this.probe.font = fontStr;
+      try {
+        (this.probe as any).letterSpacing = `${lsBuf}px`;
+      } catch {}
 
-			const chars = Array.from(line);
-			const rprev = new Int32Array(rowsLine).fill(-1e9);
-			const cells: Cell[] = [];
-			let width = 0;
-			let shift = 0;
+      const chars = Array.from(line);
+      const rprev = new Int32Array(rowsLine).fill(-1e9);
+      const cells: Cell[] = [];
+      let width = 0;
+      let shift = 0;
 
-			for (let i = 0; i < chars.length; i++) {
-				const penX = this.probe.measureText(chars.slice(0, i).join('')).width; // cumulative, keeps kerning
-				const desired = Math.round(penX / k) + shift;
-				const glyph = this.rasterizeGlyph(chars[i], fontStr, lsBuf, capAscent, k, rowsLine, useCenter, threshold);
-				if (!glyph.hasInk) continue;
+      for (let i = 0; i < chars.length; i++) {
+        const penX = this.probe.measureText(chars.slice(0, i).join('')).width; // cumulative, keeps kerning
+        const desired = Math.round(penX / k) + shift;
+        const glyph = this.rasterizeGlyph(chars[i], fontStr, lsBuf, capAscent, k, rowsLine, useCenter, threshold);
+        if (!glyph.hasInk) continue;
 
-				// Minimum placement so this glyph keeps ≥1 empty column from what's placed.
-				let minPlace = -Infinity;
-				if (separate) {
-					for (let r = 0; r < rowsLine; r++) {
-						if (glyph.left[r] < 0) continue;
-						const rp = Math.max(
-							r > 0 ? rprev[r - 1] : -1e9,
-							rprev[r],
-							r < rowsLine - 1 ? rprev[r + 1] : -1e9,
-						);
-						if (rp > -1e9) minPlace = Math.max(minPlace, rp + 2 - (glyph.left[r] - glyph.penCol));
-					}
-				}
-				const place = Number.isFinite(minPlace) ? Math.max(desired, minPlace) : desired;
-				shift += place - desired;
+        // Minimum placement so this glyph keeps ≥1 empty column from what's placed.
+        let minPlace = -Infinity;
+        if (separate) {
+          for (let r = 0; r < rowsLine; r++) {
+            if (glyph.left[r] < 0) continue;
+            const rp = Math.max(
+              r > 0 ? rprev[r - 1] : -1e9,
+              rprev[r],
+              r < rowsLine - 1 ? rprev[r + 1] : -1e9,
+            );
+            if (rp > -1e9) minPlace = Math.max(minPlace, rp + 2 - (glyph.left[r] - glyph.penCol));
+          }
+        }
+        const place = Number.isFinite(minPlace) ? Math.max(desired, minPlace) : desired;
+        shift += place - desired;
 
-				for (let r = 0; r < rowsLine; r++) {
-					if (glyph.left[r] < 0) continue;
-					for (let cx = glyph.left[r]; cx <= glyph.right[r]; cx++) {
-						if (!glyph.mask[r * glyph.cols + cx]) continue;
-						const c = place + (cx - glyph.penCol);
-						if (c < 0) continue;
-						cells.push({ c, r });
-						if (c > rprev[r]) rprev[r] = c;
-						if (c + 1 > width) width = c + 1;
-					}
-				}
-			}
-			return { cells, width };
-		}
+        for (let r = 0; r < rowsLine; r++) {
+          if (glyph.left[r] < 0) continue;
+          for (let cx = glyph.left[r]; cx <= glyph.right[r]; cx++) {
+            if (!glyph.mask[r * glyph.cols + cx]) continue;
+            const c = place + (cx - glyph.penCol);
+            if (c < 0) continue;
+            cells.push({ c, r });
+            if (c > rprev[r]) rprev[r] = c;
+            if (c + 1 > width) width = c + 1;
+          }
+        }
+      }
+      return { cells, width };
+    }
 
-		/** Render a single glyph and sample it to an on/off cell mask. */
-		private rasterizeGlyph(
-			ch: string,
-			fontStr: string,
-			lsBuf: number,
-			capAscent: number,
-			k: number,
-			rowsLine: number,
-			useCenter: boolean,
-			threshold: number,
-		): Glyph {
-			const adv = this.probe.measureText(ch).width;
-			const cols = Math.ceil(adv / k) + GPAD * 2;
-			const raster = document.createElement('canvas');
-			raster.width = cols * k * SS;
-			raster.height = rowsLine * k * SS;
-			const g = raster.getContext('2d', { willReadFrequently: true })!;
-			g.scale(SS, SS);
-			g.translate(GPAD * k, 0);
-			g.font = fontStr;
-			try {
-				(g as any).letterSpacing = `${lsBuf}px`;
-			} catch {}
-			g.textBaseline = 'alphabetic';
-			g.textAlign = 'left';
-			g.fillStyle = '#fff';
-			g.fillText(ch, 0, capAscent);
+    /** Render a single glyph and sample it to an on/off cell mask. */
+    private rasterizeGlyph(
+      ch: string,
+      fontStr: string,
+      lsBuf: number,
+      capAscent: number,
+      k: number,
+      rowsLine: number,
+      useCenter: boolean,
+      threshold: number,
+    ): Glyph {
+      const adv = this.probe.measureText(ch).width;
+      const cols = Math.ceil(adv / k) + GPAD * 2;
+      const raster = document.createElement('canvas');
+      raster.width = cols * k * SS;
+      raster.height = rowsLine * k * SS;
+      const g = raster.getContext('2d', { willReadFrequently: true })!;
+      g.scale(SS, SS);
+      g.translate(GPAD * k, 0);
+      g.font = fontStr;
+      try {
+        (g as any).letterSpacing = `${lsBuf}px`;
+      } catch {}
+      g.textBaseline = 'alphabetic';
+      g.textAlign = 'left';
+      g.fillStyle = '#fff';
+      g.fillText(ch, 0, capAscent);
 
-			const data = g.getImageData(0, 0, raster.width, raster.height).data;
-			const rw = raster.width;
-			const rh = raster.height;
-			const cellSub = k * SS;
-			const mask = new Uint8Array(cols * rowsLine);
-			const left = new Int16Array(rowsLine).fill(-1);
-			const right = new Int16Array(rowsLine).fill(-1);
-			let hasInk = false;
+      const data = g.getImageData(0, 0, raster.width, raster.height).data;
+      const rw = raster.width;
+      const rh = raster.height;
+      const cellSub = k * SS;
+      const mask = new Uint8Array(cols * rowsLine);
+      const left = new Int16Array(rowsLine).fill(-1);
+      const right = new Int16Array(rowsLine).fill(-1);
+      let hasInk = false;
 
-			for (let cy = 0; cy < rowsLine; cy++) {
-				for (let cx = 0; cx < cols; cx++) {
-					let hit: boolean;
-					if (useCenter) {
-						const sx = Math.min(rw - 1, Math.floor((cx + 0.5) * cellSub));
-						const sy = Math.min(rh - 1, Math.floor((cy + 0.5) * cellSub));
-						hit = data[(sy * rw + sx) * 4 + 3] / 255 >= threshold;
-					} else {
-						const x0 = cx * cellSub;
-						const x1 = Math.min(rw, x0 + cellSub);
-						const y0 = cy * cellSub;
-						const y1 = Math.min(rh, y0 + cellSub);
-						let sum = 0;
-						let n = 0;
-						for (let y = y0; y < y1; y++) {
-							let idx = (y * rw + x0) * 4 + 3;
-							for (let x = x0; x < x1; x++) {
-								sum += data[idx];
-								idx += 4;
-								n++;
-							}
-						}
-						hit = (n ? sum / n / 255 : 0) >= threshold;
-					}
-					if (hit) {
-						mask[cy * cols + cx] = 1;
-						if (left[cy] < 0) left[cy] = cx;
-						right[cy] = cx;
-						hasInk = true;
-					}
-				}
-			}
-			return { mask, cols, penCol: GPAD, left, right, hasInk };
-		}
-	}
+      for (let cy = 0; cy < rowsLine; cy++) {
+        for (let cx = 0; cx < cols; cx++) {
+          let hit: boolean;
+          if (useCenter) {
+            const sx = Math.min(rw - 1, Math.floor((cx + 0.5) * cellSub));
+            const sy = Math.min(rh - 1, Math.floor((cy + 0.5) * cellSub));
+            hit = data[(sy * rw + sx) * 4 + 3] / 255 >= threshold;
+          } else {
+            const x0 = cx * cellSub;
+            const x1 = Math.min(rw, x0 + cellSub);
+            const y0 = cy * cellSub;
+            const y1 = Math.min(rh, y0 + cellSub);
+            let sum = 0;
+            let n = 0;
+            for (let y = y0; y < y1; y++) {
+              let idx = (y * rw + x0) * 4 + 3;
+              for (let x = x0; x < x1; x++) {
+                sum += data[idx];
+                idx += 4;
+                n++;
+              }
+            }
+            hit = (n ? sum / n / 255 : 0) >= threshold;
+          }
+          if (hit) {
+            mask[cy * cols + cx] = 1;
+            if (left[cy] < 0) left[cy] = cx;
+            right[cy] = cx;
+            hasInk = true;
+          }
+        }
+      }
+      return { mask, cols, penCol: GPAD, left, right, hasInk };
+    }
+  }
 
-	function clamp(v: number, lo: number, hi: number) {
-		return Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : lo));
-	}
+  function clamp(v: number, lo: number, hi: number) {
+    return Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : lo));
+  }
 
-	if (!customElements.get('pixel-text')) {
-		customElements.define('pixel-text', PixelText);
-	}
+  if (!customElements.get('pixel-text')) {
+    customElements.define('pixel-text', PixelText);
+  }
 </script>
