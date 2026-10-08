@@ -773,7 +773,12 @@ void main() {
 
         window.addEventListener('resize', () => {
           resize();
-          scheduleRender();
+          if (!running) return;
+          cancelAnimationFrame(rafId);
+          clearTimeout(timeoutId);
+          rafId = 0;
+          timeoutId = 0;
+          render();
         });
 
         document.addEventListener('visibilitychange', () => {
