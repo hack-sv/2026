@@ -15,14 +15,14 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^13.1.10",
+    "@astrojs/cloudflare": "14.3.3",
     "@fontsource/nunito-sans": "^5.2.7",
-    "astro": "^6.1.8"
+    "astro": "7.3.5"
   },
   "devDependencies": {
-    "wrangler": "^4.83.0"
+    "wrangler": "4.147.0"
   },
   "overrides": {
-    "vite": "^7"
+    "vite": "^8"
   }
 }
